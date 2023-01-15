@@ -15,7 +15,7 @@ public class VonoBehaviour<T> : MonoBehaviour
             //iterate over fields with reflection
             foreach (var field in typeof(T).GetFields(BindingFlags.Instance | BindingFlags.NonPublic))
             {
-                if (field.FieldType.IsSubclassOf(typeof(MonoService)))
+                if (field.FieldType.IsSubclassOf(typeof(MonoVervice)))
                 {
                     Services.Add(field.FieldType, field);
                 }
