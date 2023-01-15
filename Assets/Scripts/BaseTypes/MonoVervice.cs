@@ -8,7 +8,7 @@ public abstract class MonoVervice<T> : MonoVervice
     private void Awake()
     {
         Dependencies = new();
-        
+
         //iterate over fields with reflection
         foreach (var field in GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic))
         {
@@ -17,23 +17,21 @@ public abstract class MonoVervice<T> : MonoVervice
                 Dependencies.Add(new DependencyNode(field.FieldType, field, this));
             }
         }
-        
+
         Container.Instance.RegisterMono(typeof(T), this);
     }
 
     protected void SetReady()
     {
-        Container.Instance.SetMonoReady(typeof(T), this);
+        Container.Instance.SetReady(typeof(T), this);
     }
 }
 
 public abstract class MonoVervice : MonoBehaviour, IVervice
 {
-    public List<DependencyNode> Dependencies;
-    
-    public abstract void Begin();
-    
+    public List<DependencyNode> Dependencies { get; set; }
     public bool Resolved => Dependencies.Count == 0;
+    public abstract void Begin();
     public void OnTypeResolved(Type type)
     {
         for (var i = 0; i < Dependencies.Count; i++)

@@ -8,14 +8,16 @@ public class Container : MonoBehaviour
 {
     //singleton
     public static Container Instance { get; private set; }
+    
     private Dictionary<Type, object> _readyServices = new();
-    private List<IVervice> _readyToInitServices = new();
 
-    private Dictionary<Type, Vervice> _pocoServices = new();
-    private Dictionary<Type, MonoVervice> _monoServices = new();
-
-    private HashSet<Type> _registeryWaitingServiceTypes = new();
+    private Dictionary<Type, IVervice> _pocoServices = new();
+    private Dictionary<Type, IVervice> _monoServices = new();
+    
     private Dictionary<Type, List<DependencyNode>> _objectGraph = new();
+
+    private List<IVervice> _readyToInitServices = new();
+    private HashSet<Type> _registeryWaitingServiceTypes = new();
 
     private void Awake()
     {
@@ -23,11 +25,17 @@ public class Container : MonoBehaviour
 
         new POCOService();
         new BarPOCOService();
-
+        
+        //mono behaviors will be registered after this awake call    
         _registeryWaitingServiceTypes.Add(typeof(FooService));
         _registeryWaitingServiceTypes.Add(typeof(TestService));
     }
 
+    public void Register(Type type, Vervice service)
+    {
+        _pocoServices.Add(type, service);
+    }
+    
     public void RegisterMono(Type type, MonoVervice service)
     {
         _monoServices.Add(type, service);
@@ -35,12 +43,7 @@ public class Container : MonoBehaviour
         CheckRegistrationFinish();
     }
 
-    public void Register(Type type, Vervice service)
-    {
-        _pocoServices.Add(type, service);
-    }
-
-    public void SetReady(Type type, Vervice service)
+    public void SetReady(Type type, IVervice service)
     {
         if(!_objectGraph.ContainsKey(type)) return;
         
@@ -62,69 +65,28 @@ public class Container : MonoBehaviour
         CheckInjectionFinish();
     }
 
-    public void SetMonoReady(Type type, MonoVervice service)
-    {
-        if(!_objectGraph.ContainsKey(type)) return;
-        
-        foreach (var dependency in _objectGraph[type])
-        {
-            var requirer = dependency.Requirer;
-            dependency.FieldInfo.SetValue(dependency.Requirer, service);
-            
-            var vervice = (IVervice)requirer;
-            vervice.OnTypeResolved(type);
-            
-            if (vervice.Resolved)
-            {
-                vervice.Begin();
-            }
-        }
-
-        _objectGraph.Remove(type);
-        CheckInjectionFinish();
-    }
-
     private void BuildObjectGraph()
     {
-        BuildGraphForPoco();
-        BuildGraphForMono();
+        BuildObjectGraphForVervices(_pocoServices);
+        BuildObjectGraphForVervices(_monoServices);
         Resolve();
     }
 
-    private void BuildGraphForPoco()
+    private void BuildObjectGraphForVervices(Dictionary<Type, IVervice> vervices)
     {
-        foreach (var typeServicePair in _pocoServices)
+        foreach (var typeServicePair in vervices)
         {
-            var pocoService = typeServicePair.Value;
+            var vervice = typeServicePair.Value;
 
-            for (var i = pocoService.Dependencies.Count - 1; i >= 0; i--)
+            for (var i = vervice.Dependencies.Count - 1; i >= 0; i--)
             {
-                var dependency = pocoService.Dependencies[i];
+                var dependency = vervice.Dependencies[i];
                 SetForLateBinding(dependency);
             }
 
-            if (pocoService.Dependencies.Count == 0)
+            if (vervice.Dependencies.Count == 0)
             {
-                _readyToInitServices.Add(pocoService);
-            }
-        }
-    }
-
-    private void BuildGraphForMono()
-    {
-        foreach (var typeServicePair in _monoServices)
-        {
-            var monoService = typeServicePair.Value;
-
-            for (var i = monoService.Dependencies.Count - 1; i >= 0; i--)
-            {
-                var dependency = monoService.Dependencies[i];
-                SetForLateBinding(dependency);
-            }
-
-            if (monoService.Dependencies.Count == 0)
-            {
-                _readyToInitServices.Add(monoService);
+                _readyToInitServices.Add(vervice);
             }
         }
     }
@@ -161,6 +123,8 @@ public class Container : MonoBehaviour
         }
         
         _readyToInitServices.Clear();
+        _pocoServices.Clear();
+        _monoServices.Clear();
     }
     
     public void Resolve(object obj, Dictionary<Type, FieldInfo> fields)

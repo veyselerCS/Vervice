@@ -28,11 +28,9 @@ public abstract class Vervice<T> : Vervice
 
 public abstract class Vervice: IVervice
 {
-    public List<DependencyNode> Dependencies;
-
-    public abstract void Begin();
+    public List<DependencyNode> Dependencies { get;  set; }
     public bool Resolved => Dependencies.Count == 0;
-    
+    public abstract void Begin();
     public void OnTypeResolved(Type type)
     {
         for (var i = 0; i < Dependencies.Count; i++)
@@ -51,4 +49,5 @@ public interface IVervice
     void Begin();
     void OnTypeResolved(Type t);
     bool Resolved { get; }
+    List<DependencyNode> Dependencies { get; }
 }
