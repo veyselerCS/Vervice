@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Reflection.Emit;
+using NaughtyAttributes;
 using UnityEngine;
 
 [DefaultExecutionOrder(-1)]
@@ -45,6 +47,8 @@ public class Container : MonoBehaviour
 
     public void SetReady(Type type, IVervice service)
     {
+        _readyServices.Add(type, service);
+        
         if(!_objectGraph.ContainsKey(type)) return;
         
         foreach (var dependency in _objectGraph[type])
@@ -127,11 +131,27 @@ public class Container : MonoBehaviour
         _monoServices.Clear();
     }
     
-    public void Resolve(object obj, Dictionary<Type, FieldInfo> fields)
+    public void Resolve(object obj, Dictionary<Type, Action<object, object>> accessors)
     {
-        foreach (var service in fields)
+        foreach (var accesor in accessors)
         {
-            service.Value.SetValue(obj, _readyServices[service.Key]);
+            var type = accesor.Key;
+            var service = _readyServices[type];
+            accesor.Value(obj, service);
+        }
+    }
+
+    public void Resolve<T>(ref T obj)
+    {
+        obj = (T)_readyServices[typeof(T)];
+    }
+
+    [Button()]
+    public void DumpServiceTypes()
+    {
+        foreach (var service in _readyServices)
+        {
+            Debug.Log(service.Key);
         }
     }
 }

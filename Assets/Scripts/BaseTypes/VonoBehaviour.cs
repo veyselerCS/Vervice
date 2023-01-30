@@ -5,23 +5,40 @@ using UnityEngine;
 
 public class VonoBehaviour<T> : MonoBehaviour
 {
-    public static Dictionary<Type, FieldInfo> Services { get; private set; }
+    protected static Dictionary<Type, Action<object, object>> ServiceAccessors;
 
     private void Awake()
     {
-        if (Services == null)   
+        if (ServiceAccessors == null)   
         {
-            Services = new Dictionary<Type, FieldInfo>();
-            //iterate over fields with reflection
-            foreach (var field in typeof(T).GetFields(BindingFlags.Instance | BindingFlags.NonPublic))
+            FillAccessors();
+        }
+        
+        Container.Instance.Resolve(this, ServiceAccessors);
+    }
+
+    private void FillAccessors()
+    {
+        ServiceAccessors = new();
+        
+        //iterate over the fields with Inject attribute
+        foreach (var fieldInfo in typeof(T).GetFields(BindingFlags.Instance | BindingFlags.NonPublic))
+        {
+            foreach (var customAttribute in fieldInfo.GetCustomAttributes())
             {
-                if (field.FieldType.IsSubclassOf(typeof(MonoVervice)))
+                if (customAttribute.GetType() == typeof(Inject))
                 {
-                    Services.Add(field.FieldType, field);
+                    var fieldType = fieldInfo.FieldType;
+                    var injectorMethod = typeof(T).GetMethod("Inject" + fieldInfo.Name, BindingFlags.Static | BindingFlags.Public);
+                    
+                    if(fieldType.IsSubclassOf(typeof(Vervice)) || fieldType.IsSubclassOf(typeof(MonoVervice)))
+                    {
+                        var delegateType = typeof(Action<object, object>);
+                        Delegate del = Delegate.CreateDelegate(delegateType, injectorMethod);
+                        ServiceAccessors.Add(fieldType, (Action<object, object>)del);
+                    }
                 }
             }
         }
-        
-        Container.Instance.Resolve(this, Services);
     }
 }
