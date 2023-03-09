@@ -5,21 +5,21 @@ using UnityEngine;
 
 public class VonoBehaviour<T> : MonoBehaviour
 {
-    protected static Dictionary<Type, Action<object, object>> ServiceAccessors;
+    private static Dictionary<Type, Action<object, object>> _serviceAccessors;
 
     private void Awake()
     {
-        if (ServiceAccessors == null)   
+        if (_serviceAccessors == null)   
         {
             FillAccessors();
         }
         
-        Container.Instance.Resolve(this, ServiceAccessors);
+        Container.Instance.ResolveVono(this, _serviceAccessors);
     }
 
     private void FillAccessors()
     {
-        ServiceAccessors = new();
+        _serviceAccessors = new();
         
         //iterate over the fields with Inject attribute
         foreach (var fieldInfo in typeof(T).GetFields(BindingFlags.Instance | BindingFlags.NonPublic))
@@ -28,6 +28,7 @@ public class VonoBehaviour<T> : MonoBehaviour
             {
                 if (customAttribute.GetType() == typeof(Inject))
                 {
+                    //get cecil injected method
                     var fieldType = fieldInfo.FieldType;
                     var injectorMethod = typeof(T).GetMethod("Inject" + fieldInfo.Name, BindingFlags.Static | BindingFlags.Public);
                     
@@ -35,7 +36,7 @@ public class VonoBehaviour<T> : MonoBehaviour
                     {
                         var delegateType = typeof(Action<object, object>);
                         Delegate del = Delegate.CreateDelegate(delegateType, injectorMethod);
-                        ServiceAccessors.Add(fieldType, (Action<object, object>)del);
+                        _serviceAccessors.Add(fieldType, (Action<object, object>)del);
                     }
                 }
             }

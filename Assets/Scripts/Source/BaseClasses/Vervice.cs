@@ -1,11 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Reflection;
-using UnityEngine;
 
-public abstract class MonoVervice<T> : MonoVervice
+public abstract class Vervice<T> : Vervice
 {
-    private void Awake()
+    protected Vervice()
     {
         Dependencies = new();
 
@@ -17,8 +16,6 @@ public abstract class MonoVervice<T> : MonoVervice
                 Dependencies.Add(new DependencyNode(field.FieldType, field, this));
             }
         }
-
-        Container.Instance.RegisterMono(typeof(T), this);
     }
 
     protected void SetReady()
@@ -27,16 +24,16 @@ public abstract class MonoVervice<T> : MonoVervice
     }
 }
 
-public abstract class MonoVervice : MonoBehaviour, IVervice
+public abstract class Vervice: IVervice
 {
-    public List<DependencyNode> Dependencies { get; set; }
+    public List<DependencyNode> Dependencies { get;  set; }
     public bool Resolved => Dependencies.Count == 0;
     public abstract void Begin();
-    public void OnTypeResolved(Type type)
+    public void OnDependencyResolved(Type resolvedDependencyType)
     {
         for (var i = 0; i < Dependencies.Count; i++)
         {
-            if (Dependencies[i].Type == type)
+            if (Dependencies[i].Type == resolvedDependencyType)
             {
                 Dependencies.RemoveAt(i);
                 return;
@@ -44,3 +41,4 @@ public abstract class MonoVervice : MonoBehaviour, IVervice
         }
     }
 }
+

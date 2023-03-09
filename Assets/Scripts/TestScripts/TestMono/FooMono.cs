@@ -8,6 +8,6 @@ public class FooMono : VonoBehaviour<FooMono>
     [Button()]
     private void TestFoo()
     {
-        Debug.LogWarning("I am Fo     oMono");
+        Debug.LogWarning("I am FooMono");
     }
 }

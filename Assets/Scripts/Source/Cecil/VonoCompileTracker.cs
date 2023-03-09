@@ -1,17 +1,9 @@
-﻿using System.Collections.Generic;
-using UnityEditor.Build;
-using UnityEditor.Build.Reporting;
-using UnityEngine;
+﻿using UnityEngine;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 
-public class CecilTest : MonoBehaviour, IPostprocessBuildWithReport
+public class VonoCompileTracker : MonoBehaviour
 {
-    public void OnPostprocessBuild(BuildReport report)
-    {
-        Debug.LogWarning("I am a post build callback!");
-    }
-
     [UnityEditor.Callbacks.DidReloadScripts]
     public static void OnScriptsReloaded()
     {

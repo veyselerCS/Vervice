@@ -1,50 +1,72 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Reflection;
-using System.Reflection.Emit;
 using NaughtyAttributes;
 using UnityEngine;
 
 [DefaultExecutionOrder(-1)]
 public class Container : MonoBehaviour
 {
-    //singleton
+    //<summary>Singleton access</summary>
     public static Container Instance { get; private set; }
     
+    //<summary>Services with 0 unresolved dependency</summary>
     private Dictionary<Type, object> _readyServices = new();
-
-    private Dictionary<Type, IVervice> _pocoServices = new();
-    private Dictionary<Type, IVervice> _monoServices = new();
     
+    //<summary>Registered services with some unresolved dependencies</summary>
+    private Dictionary<Type, IVervice> _notReadyServices = new();
+
+    //<summary>List<DependencyNode> : Contains the requirer infos who requires an injection of a service with type : Type</summary>
     private Dictionary<Type, List<DependencyNode>> _objectGraph = new();
 
+    //<summary>Services that are ready to be initialized from entry point</summary>
     private List<IVervice> _readyToInitServices = new();
+    
+    //<summary>Services that are waiting for their mono behavior to be registered to the container</summary>
     private HashSet<Type> _registeryWaitingServiceTypes = new();
 
     private void Awake()
     {
         Instance = this;
 
-        new POCOService();
-        new BarPOCOService();
-        
-        //mono behaviors will be registered after this awake call    
-        _registeryWaitingServiceTypes.Add(typeof(FooService));
-        _registeryWaitingServiceTypes.Add(typeof(TestService));
+        Install(typeof(POCOService));
+        Install(typeof(BarPOCOService));
+        Install(typeof(FooService));
+        Install(typeof(TestService));
     }
 
-    public void Register(Type type, Vervice service)
+    //<summary>Mono services will be registered at their awake</summary>
+    //<summary>Execution order is ensured by setting DefaultExecutionOrder</summary>
+    public void Install(Type type)
     {
-        _pocoServices.Add(type, service);
+        if(type.IsSubclassOf(typeof(MonoVervice)))
+        {
+            _registeryWaitingServiceTypes.Add(type);
+        }
+        else
+        {
+            var service = (Vervice)Activator.CreateInstance(type);
+            _notReadyServices.Add(type, service);
+        }
     }
     
+    //<summary>Called by MonoVervice when it is awake</summary>
     public void RegisterMono(Type type, MonoVervice service)
     {
-        _monoServices.Add(type, service);
+        _notReadyServices.Add(type, service);
         _registeryWaitingServiceTypes.Remove(type);
         CheckRegistrationFinish();
     }
 
+    private void CheckRegistrationFinish()
+    {
+        if (_registeryWaitingServiceTypes.Count == 0)
+        {
+            BuildObjectGraph();
+            Resolve();
+        }
+    }
+    
+    //<summary>Called by an IVervice Begin() method when it is ready</summary>
     public void SetReady(Type type, IVervice service)
     {
         _readyServices.Add(type, service);
@@ -57,7 +79,7 @@ public class Container : MonoBehaviour
             dependency.FieldInfo.SetValue(requirer, service);
             
             var vervice = (IVervice)requirer;
-            vervice.OnTypeResolved(type);
+            vervice.OnDependencyResolved(type);
             
             if (vervice.Resolved)
             {
@@ -71,14 +93,7 @@ public class Container : MonoBehaviour
 
     private void BuildObjectGraph()
     {
-        BuildObjectGraphForVervices(_pocoServices);
-        BuildObjectGraphForVervices(_monoServices);
-        Resolve();
-    }
-
-    private void BuildObjectGraphForVervices(Dictionary<Type, IVervice> vervices)
-    {
-        foreach (var typeServicePair in vervices)
+        foreach (var typeServicePair in _notReadyServices)
         {
             var vervice = typeServicePair.Value;
 
@@ -103,19 +118,12 @@ public class Container : MonoBehaviour
             _objectGraph.Add(dependency.Type, new List<DependencyNode>() { dependency });
     }
 
-    private void CheckRegistrationFinish()
-    {
-        if (_registeryWaitingServiceTypes.Count == 0)
-        {
-            BuildObjectGraph();
-        }
-    }
-
     private void CheckInjectionFinish()
     {
         if (_objectGraph.Count == 0)
         {
-            Debug.Log("All services are ready");
+            //TODO Raise Container Ready Event
+            Debug.LogWarning("Container Ready");
         }
     }
 
@@ -127,11 +135,9 @@ public class Container : MonoBehaviour
         }
         
         _readyToInitServices.Clear();
-        _pocoServices.Clear();
-        _monoServices.Clear();
     }
     
-    public void Resolve(object obj, Dictionary<Type, Action<object, object>> accessors)
+    public void ResolveVono(object obj, Dictionary<Type, Action<object, object>> accessors)
     {
         foreach (var accesor in accessors)
         {
