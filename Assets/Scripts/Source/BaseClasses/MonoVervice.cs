@@ -7,6 +7,7 @@ public abstract class MonoVervice<T> : MonoVervice
 {
     private void Awake()
     {
+        SceneName = gameObject.scene.name;
         Dependencies = new();
 
         //iterate over fields with reflection
@@ -18,12 +19,18 @@ public abstract class MonoVervice<T> : MonoVervice
             }
         }
 
-        Container.Instance.RegisterMono(typeof(T), this);
+        ContainerRoot.Instance.RegisterMonoVervice(typeof(T), this, GetContextType());
     }
 
     protected void SetReady()
     {
-        Container.Instance.SetReady(typeof(T), this);
+        ContainerRoot.Instance.SetReady(typeof(T), this, GetContextType());
+    }
+
+    private ContextType GetContextType()
+    {
+        var contextAttribute = GetType().GetCustomAttribute(typeof(Context)) as Context;
+        return contextAttribute?.Type ?? ContextType.Default;
     }
 }
 
@@ -31,7 +38,9 @@ public abstract class MonoVervice : MonoBehaviour, IVervice
 {
     public List<DependencyNode> Dependencies { get; set; }
     public bool Resolved => Dependencies.Count == 0;
+    public string SceneName { get; set; }
     public abstract void Begin();
+
     public void OnDependencyResolved(Type resolvedDependencyType)
     {
         for (var i = 0; i < Dependencies.Count; i++)

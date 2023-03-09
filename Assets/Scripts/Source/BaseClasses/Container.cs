@@ -6,8 +6,7 @@ using UnityEngine;
 [DefaultExecutionOrder(-1)]
 public class Container : MonoBehaviour
 {
-    //<summary>Singleton access</summary>
-    public static Container Instance { get; private set; }
+    [SerializeField] public ContextType Context;
     
     //<summary>Services with 0 unresolved dependency</summary>
     private Dictionary<Type, object> _readyServices = new();
@@ -24,14 +23,9 @@ public class Container : MonoBehaviour
     //<summary>Services that are waiting for their mono behavior to be registered to the container</summary>
     private HashSet<Type> _registeryWaitingServiceTypes = new();
 
-    private void Awake()
+    protected void Awake()
     {
-        Instance = this;
-
-        Install(typeof(POCOService));
-        Install(typeof(BarPOCOService));
-        Install(typeof(FooService));
-        Install(typeof(TestService));
+        ContainerRoot.Instance.Register(this);
     }
 
     //<summary>Mono services will be registered at their awake</summary>
@@ -45,6 +39,7 @@ public class Container : MonoBehaviour
         else
         {
             var service = (Vervice)Activator.CreateInstance(type);
+            service.SceneName = gameObject.scene.name;
             _notReadyServices.Add(type, service);
         }
     }
@@ -136,20 +131,16 @@ public class Container : MonoBehaviour
         
         _readyToInitServices.Clear();
     }
-    
-    public void ResolveVono(object obj, Dictionary<Type, Action<object, object>> accessors)
+
+    public void Resolve(object obj, Type type, Action<object, object> accesor)
     {
-        foreach (var accesor in accessors)
-        {
-            var type = accesor.Key;
-            var service = _readyServices[type];
-            accesor.Value(obj, service);
-        }
+        var service = _readyServices[type];
+        accesor(obj, service);
     }
 
-    public void Resolve<T>(ref T obj)
+    public T Resolve<T>()
     {
-        obj = (T)_readyServices[typeof(T)];
+        return (T)_readyServices[typeof(T)];
     }
 
     [Button()]

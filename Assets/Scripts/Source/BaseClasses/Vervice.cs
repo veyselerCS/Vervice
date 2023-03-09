@@ -20,15 +20,23 @@ public abstract class Vervice<T> : Vervice
 
     protected void SetReady()
     {
-        Container.Instance.SetReady(typeof(T), this);
+        ContainerRoot.Instance.SetReady(typeof(T), this, GetContextType());
+    }
+
+    private ContextType GetContextType()
+    {
+        var contextAttribute = GetType().GetCustomAttribute(typeof(Context)) as Context;
+        return contextAttribute?.Type ?? ContextType.Default;
     }
 }
 
-public abstract class Vervice: IVervice
+public abstract class Vervice : IVervice
 {
-    public List<DependencyNode> Dependencies { get;  set; }
+    public List<DependencyNode> Dependencies { get; set; }
     public bool Resolved => Dependencies.Count == 0;
+    public string SceneName { get; set; }
     public abstract void Begin();
+
     public void OnDependencyResolved(Type resolvedDependencyType)
     {
         for (var i = 0; i < Dependencies.Count; i++)
@@ -41,4 +49,3 @@ public abstract class Vervice: IVervice
         }
     }
 }
-
