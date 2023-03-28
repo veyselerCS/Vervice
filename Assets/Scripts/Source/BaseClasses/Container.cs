@@ -1,15 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using NaughtyAttributes;
 using UnityEngine;
 
 [DefaultExecutionOrder(-1)]
-public class Container : MonoBehaviour
+public abstract class Container : MonoBehaviour
 {
     [SerializeField] public ContextType Context;
-    
-    //<summary>Services with 0 unresolved dependency</summary>
-    private Dictionary<Type, object> _readyServices = new();
     
     //<summary>Registered services with some unresolved dependencies</summary>
     private Dictionary<Type, IVervice> _notReadyServices = new();
@@ -25,9 +21,18 @@ public class Container : MonoBehaviour
 
     protected void Awake()
     {
-        ContainerRoot.Instance.Register(this);
+        ApplicationRoot.Instance.Register(this);
+        
+        Deploy();
+        CheckRegistrationFinish();
     }
 
+    //<summary>Install API will be called on overrides and vervices will be deployed</summary>
+    protected virtual void Deploy()
+    {
+        
+    }
+    
     //<summary>Mono services will be registered at their awake</summary>
     //<summary>Execution order is ensured by setting DefaultExecutionOrder</summary>
     public void Install(Type type)
@@ -49,6 +54,7 @@ public class Container : MonoBehaviour
     {
         _notReadyServices.Add(type, service);
         _registeryWaitingServiceTypes.Remove(type);
+        
         CheckRegistrationFinish();
     }
 
@@ -57,35 +63,9 @@ public class Container : MonoBehaviour
         if (_registeryWaitingServiceTypes.Count == 0)
         {
             BuildObjectGraph();
-            Resolve();
         }
     }
     
-    //<summary>Called by an IVervice Begin() method when it is ready</summary>
-    public void SetReady(Type type, IVervice service)
-    {
-        _readyServices.Add(type, service);
-        
-        if(!_objectGraph.ContainsKey(type)) return;
-        
-        foreach (var dependency in _objectGraph[type])
-        {
-            var requirer = dependency.Requirer;
-            dependency.FieldInfo.SetValue(requirer, service);
-            
-            var vervice = (IVervice)requirer;
-            vervice.OnDependencyResolved(type);
-            
-            if (vervice.Resolved)
-            {
-                vervice.Begin();
-            }
-        }
-
-        _objectGraph.Remove(type);
-        CheckInjectionFinish();
-    }
-
     private void BuildObjectGraph()
     {
         foreach (var typeServicePair in _notReadyServices)
@@ -104,51 +84,12 @@ public class Container : MonoBehaviour
             }
         }
     }
-
+    
     private void SetForLateBinding(DependencyNode dependency)
     {
         if (_objectGraph.TryGetValue(dependency.Type, out var fieldInfos))
             fieldInfos.Add(dependency);
         else
             _objectGraph.Add(dependency.Type, new List<DependencyNode>() { dependency });
-    }
-
-    private void CheckInjectionFinish()
-    {
-        if (_objectGraph.Count == 0)
-        {
-            //TODO Raise Container Ready Event
-            Debug.LogWarning("Container Ready");
-        }
-    }
-
-    private void Resolve()
-    {
-        foreach (var service in _readyToInitServices)
-        {
-            service.Begin();
-        }
-        
-        _readyToInitServices.Clear();
-    }
-
-    public void Resolve(object obj, Type type, Action<object, object> accesor)
-    {
-        var service = _readyServices[type];
-        accesor(obj, service);
-    }
-
-    public T Resolve<T>()
-    {
-        return (T)_readyServices[typeof(T)];
-    }
-
-    [Button()]
-    public void DumpServiceTypes()
-    {
-        foreach (var service in _readyServices)
-        {
-            Debug.Log(service.Key);
-        }
     }
 }

@@ -1,5 +1,5 @@
 ﻿public enum ContextType
 {
-    Default = 0,
-    Scene = 1,
+    Global = 0,
+    Scene = 1
 }

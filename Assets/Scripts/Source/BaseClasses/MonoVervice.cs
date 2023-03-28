@@ -26,12 +26,6 @@ public abstract class MonoVervice<T> : MonoVervice
     {
         ContainerRoot.Instance.SetReady(typeof(T), this, GetContextType());
     }
-
-    private ContextType GetContextType()
-    {
-        var contextAttribute = GetType().GetCustomAttribute(typeof(Context)) as Context;
-        return contextAttribute?.Type ?? ContextType.Default;
-    }
 }
 
 public abstract class MonoVervice : MonoBehaviour, IVervice

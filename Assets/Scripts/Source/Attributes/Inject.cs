@@ -12,6 +12,6 @@ public class Inject : Attribute
     
     public Inject()
     {
-        Context = ContextType.Default;
+        Context = ContextType.Global;
     }
 }

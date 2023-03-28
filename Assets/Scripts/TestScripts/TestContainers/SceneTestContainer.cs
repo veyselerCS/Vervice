@@ -1,7 +1,8 @@
-﻿public class TestContainer : Container
+﻿public class SceneTestContainer : Container
 {
-    protected override void Deploy()
+    private new void Awake()
     {
+        base.Awake();
         var installer = new TestSceneInstaller();
         installer.Install(this);
     }

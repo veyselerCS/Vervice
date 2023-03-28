@@ -20,13 +20,7 @@ public abstract class Vervice<T> : Vervice
 
     protected void SetReady()
     {
-        ContainerRoot.Instance.SetReady(typeof(T), this, GetContextType());
-    }
-
-    private ContextType GetContextType()
-    {
-        var contextAttribute = GetType().GetCustomAttribute(typeof(Context)) as Context;
-        return contextAttribute?.Type ?? ContextType.Default;
+        ContainerRoot.Instance.SetReady(typeof(T), this);
     }
 }
 
