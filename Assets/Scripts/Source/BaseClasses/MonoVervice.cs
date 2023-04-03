@@ -18,13 +18,13 @@ public abstract class MonoVervice<T> : MonoVervice
                 Dependencies.Add(new DependencyNode(field.FieldType, field, this));
             }
         }
-
-        ContainerRoot.Instance.RegisterMonoVervice(typeof(T), this, GetContextType());
+        
+        EventBus.Instance.Publish(new VerviceAwakenEvent(this));
     }
 
     protected void SetReady()
     {
-        ContainerRoot.Instance.SetReady(typeof(T), this, GetContextType());
+        EventBus.Instance.Publish(new VerviceReadyEvent(this));
     }
 }
 

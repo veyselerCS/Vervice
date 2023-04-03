@@ -18,7 +18,7 @@ public class VonoBehaviour<T> : MonoBehaviour
         {
             var info = infoToAccessor.Key;
             var accessor = infoToAccessor.Value;
-            ContainerRoot.Instance.Resolve(this, info.Item1, info.Item2, accessor);
+            ApplicationRoot.Instance.AutoInject(this, info.Item1, info.Item2, accessor);
         }
     }
 

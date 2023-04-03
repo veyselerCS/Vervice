@@ -7,6 +7,8 @@ public abstract class Container : MonoBehaviour
 {
     [SerializeField] public ContextType Context;
     
+    private Dictionary<Type, IVervice> _readyServices = new();
+    
     //<summary>Registered services with some unresolved dependencies</summary>
     private Dictionary<Type, IVervice> _notReadyServices = new();
 
@@ -22,6 +24,9 @@ public abstract class Container : MonoBehaviour
     protected void Awake()
     {
         ApplicationRoot.Instance.Register(this);
+        
+        EventBus.Instance.Subscribe<VerviceAwakenEvent>(OnVerviceAwaken);
+        EventBus.Instance.Subscribe<VerviceReadyEvent>(OnVerviceReady);
         
         Deploy();
         CheckRegistrationFinish();
@@ -48,21 +53,25 @@ public abstract class Container : MonoBehaviour
             _notReadyServices.Add(type, service);
         }
     }
-    
-    //<summary>Called by MonoVervice when it is awake</summary>
-    public void RegisterMono(Type type, MonoVervice service)
+
+    private void OnVerviceAwaken(VerviceAwakenEvent data)
     {
-        _notReadyServices.Add(type, service);
+        var type = data.Vervice.GetType();
+        if (!_notReadyServices.ContainsKey(type)) return;
+        
+        _notReadyServices.Add(type, data.Vervice);
         _registeryWaitingServiceTypes.Remove(type);
         
         CheckRegistrationFinish();
     }
-
+    
     private void CheckRegistrationFinish()
     {
         if (_registeryWaitingServiceTypes.Count == 0)
         {
             BuildObjectGraph();
+            CheckGlobalContext();
+            Resolve();
         }
     }
     
@@ -91,5 +100,90 @@ public abstract class Container : MonoBehaviour
             fieldInfos.Add(dependency);
         else
             _objectGraph.Add(dependency.Type, new List<DependencyNode>() { dependency });
+    }
+
+    private void CheckGlobalContext()
+    {
+        foreach (var typeToRequirers in _objectGraph)
+        {
+            var type = typeToRequirers.Key;
+            if(ApplicationRoot.Instance.TryResolve(out var vervice))
+            {
+                ResolveDependenciesByType(vervice, type);
+            }
+        }
+    }
+    
+    private void Resolve()
+    {
+        foreach (var service in _readyToInitServices)
+        {
+            service.Begin();
+        }
+        
+        _readyToInitServices.Clear();
+    }
+    
+    public bool TryGet<T>(out T service) where T : IVervice
+    {
+        if (_readyServices.TryGetValue(typeof(T), out var vervice))
+        {
+            service = (T) vervice;
+            return true;
+        }
+
+        service = default;
+        return false;
+    }
+    
+    public bool TryGet(Type type, out IVervice service)
+    {
+        if (_readyServices.TryGetValue(type, out service))
+        {
+            return true;
+        }
+
+        service = default;
+        return false;
+    }
+    
+    private void OnVerviceReady(VerviceReadyEvent data)
+    {
+        var type = data.Vervice.GetType();
+        if (!_notReadyServices.ContainsKey(type)) return;
+        
+        _readyServices.Add(type, data.Vervice);
+        
+        if(!_objectGraph.ContainsKey(type)) return;
+        
+        ResolveDependenciesByType(data.Vervice, type);
+        CheckInjectionFinish();
+    }
+
+    private void ResolveDependenciesByType(IVervice readyVervice, Type type)
+    {
+        foreach (var dependency in _objectGraph[type])
+        {
+            var requirer = dependency.Requirer;
+            dependency.FieldInfo.SetValue(requirer, readyVervice);
+
+            var requirerVervice = (IVervice)requirer;
+            requirerVervice.OnDependencyResolved(type);
+
+            if (requirerVervice.Resolved)
+            {
+                requirerVervice.Begin();
+            }
+        }
+
+        _objectGraph.Remove(type);
+    }
+
+    private void CheckInjectionFinish()
+    {
+        if (_objectGraph.Count == 0)
+        {
+           EventBus.Instance.Publish(new ContainerReadyEvent(this));
+        }
     }
 }

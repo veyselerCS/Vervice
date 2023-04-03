@@ -20,7 +20,7 @@ public abstract class Vervice<T> : Vervice
 
     protected void SetReady()
     {
-        ContainerRoot.Instance.SetReady(typeof(T), this);
+        EventBus.Instance.Publish(new VerviceReadyEvent(this));
     }
 }
 
